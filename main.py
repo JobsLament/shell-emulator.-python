@@ -12,7 +12,12 @@ class ShellEmulator:
         self.load_virtual_filesystem()
 
     def load_virtual_filesystem(self):
-        # Extract the ZIP file to a temporary directory
+        # Проверяем, что ZIP-файл существует и является файлом
+        if not os.path.isfile(self.zip_path):
+            print(f"Error: {self.zip_path} не является файлом.")
+            sys.exit(1)
+        
+        # Извлекаем ZIP-файл во временную директорию
         with zipfile.ZipFile(self.zip_path, 'r') as zip_ref:
             zip_ref.extractall("/tmp/vfs")
         self.virtual_fs = self.build_fs_structure("/tmp/vfs")
