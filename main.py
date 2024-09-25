@@ -2,7 +2,7 @@ import os
 import zipfile
 import sys
 
-
+hostname = None
 class ShellEmulator:
     def __init__(self, hostname, zip_path):
         self.hostname = hostname
@@ -56,7 +56,7 @@ class ShellEmulator:
                 return "No such directory."
 
     def who(self):
-        return "Current user: User"
+        return self.hostname
 
     def rev(self):
         return self.current_dir[::-1]
@@ -95,10 +95,10 @@ class ShellEmulator:
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python shell_emulator.py <hostname> <zip_path>")
+        print("Usage: python main.py <hostname> <zip_path>")
         sys.exit(1)
 
-    hostname = sys.argv[1]
+    hostname = sys.argv[1]  # Сохраняем значение hostname
     zip_path = sys.argv[2]
 
     emulator = ShellEmulator(hostname, zip_path)
