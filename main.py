@@ -2,6 +2,7 @@ import os
 import zipfile
 import sys
 
+
 class ShellEmulator:
     def __init__(self, hostname, zip_path):
         self.hostname = hostname
@@ -11,6 +12,7 @@ class ShellEmulator:
         self.load_virtual_filesystem()
 
     def load_virtual_filesystem(self):
+        # Extract the ZIP file to a temporary directory
         with zipfile.ZipFile(self.zip_path, 'r') as zip_ref:
             zip_ref.extractall("/tmp/vfs")
         self.virtual_fs = self.build_fs_structure("/tmp/vfs")
@@ -19,7 +21,8 @@ class ShellEmulator:
         fs_structure = {}
         for dirpath, dirnames, filenames in os.walk(path):
             rel_path = os.path.relpath(dirpath, path)
-            rel_path = "/" if rel_path == "." else f"/{rel_path}"
+            # Normalize root path to be "/"
+            rel_path = "/" if rel_path == "." else f"/{rel_path}".replace("\\", "/")
             fs_structure[rel_path] = {
                 "dirs": dirnames,
                 "files": filenames
@@ -27,23 +30,26 @@ class ShellEmulator:
         return fs_structure
 
     def list_directory(self):
+        # List contents of the current directory
         contents = self.virtual_fs.get(self.current_dir, {})
         dirs = contents.get("dirs", [])
         files = contents.get("files", [])
         return dirs + files
 
     def change_directory(self, new_dir):
+        # Replace backslashes with forward slashes for consistency
         new_dir = new_dir.replace('\\', '/')
-        
+
         if new_dir == "..":
             if self.current_dir != "/":
                 self.current_dir = os.path.dirname(self.current_dir.rstrip('/'))
                 if not self.current_dir:
                     self.current_dir = "/"
         else:
+            # Normalize new_dir to absolute path if necessary
             if not new_dir.startswith("/"):
                 new_dir = os.path.normpath(os.path.join(self.current_dir, new_dir))
-                new_dir = new_dir.replace("\\", "/")
+                new_dir = new_dir.replace("\\", "/")  # Ensure no backslashes
             if new_dir in self.virtual_fs:
                 self.current_dir = new_dir
             else:
@@ -56,6 +62,7 @@ class ShellEmulator:
         return self.current_dir[::-1]
 
     def execute_command(self, command):
+        # Normalize command by replacing backslashes
         command = command.replace('\\', '/')
         parts = command.strip().split()
         if not parts:
@@ -84,6 +91,7 @@ class ShellEmulator:
             output = self.execute_command(command)
             if output:
                 print(output)
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
