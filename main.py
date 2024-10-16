@@ -1,8 +1,9 @@
 import os
 import zipfile
 import sys
+import tkinter as tk
+from tkinter import scrolledtext, messagebox
 
-hostname = None
 class ShellEmulator:
     def __init__(self, hostname, zip_path):
         self.hostname = hostname
@@ -14,9 +15,9 @@ class ShellEmulator:
     def load_virtual_filesystem(self):
         # Проверяем, что ZIP-файл существует и является файлом
         if not os.path.isfile(self.zip_path):
-            print(f"Error: {self.zip_path} не является файлом.")
+            messagebox.showerror("Error", f"{self.zip_path} не является файлом.")
             sys.exit(1)
-        
+
         # Извлекаем ZIP-файл во временную директорию
         with zipfile.ZipFile(self.zip_path, 'r') as zip_ref:
             zip_ref.extractall("/tmp/vfs")
@@ -26,7 +27,6 @@ class ShellEmulator:
         fs_structure = {}
         for dirpath, dirnames, filenames in os.walk(path):
             rel_path = os.path.relpath(dirpath, path)
-            # Normalize root path to be "/"
             rel_path = "/" if rel_path == "." else f"/{rel_path}".replace("\\", "/")
             fs_structure[rel_path] = {
                 "dirs": dirnames,
@@ -35,26 +35,22 @@ class ShellEmulator:
         return fs_structure
 
     def list_directory(self):
-        # List contents of the current directory
         contents = self.virtual_fs.get(self.current_dir, {})
         dirs = contents.get("dirs", [])
         files = contents.get("files", [])
         return dirs + files
 
     def change_directory(self, new_dir):
-        # Replace backslashes with forward slashes for consistency
         new_dir = new_dir.replace('\\', '/')
-
         if new_dir == "..":
             if self.current_dir != "/":
                 self.current_dir = os.path.dirname(self.current_dir.rstrip('/'))
                 if not self.current_dir:
                     self.current_dir = "/"
         else:
-            # Normalize new_dir to absolute path if necessary
             if not new_dir.startswith("/"):
                 new_dir = os.path.normpath(os.path.join(self.current_dir, new_dir))
-                new_dir = new_dir.replace("\\", "/")  # Ensure no backslashes
+                new_dir = new_dir.replace("\\", "/")
             if new_dir in self.virtual_fs:
                 self.current_dir = new_dir
             else:
@@ -67,7 +63,6 @@ class ShellEmulator:
         return self.current_dir[::-1]
 
     def execute_command(self, command):
-        # Normalize command by replacing backslashes
         command = command.replace('\\', '/')
         parts = command.strip().split()
         if not parts:
@@ -90,21 +85,41 @@ class ShellEmulator:
         else:
             return "Command not found."
 
-    def start(self):
-        while True:
-            command = input(f"{self.hostname}:{self.current_dir}$ ")
-            output = self.execute_command(command)
-            if output:
-                print(output)
+class EmulatorGUI:
+    def __init__(self, root, hostname, zip_path):
+        self.emulator = ShellEmulator(hostname, zip_path)
 
+        self.root = root
+        self.root.title("Shell Emulator")
+        
+        self.output_text = scrolledtext.ScrolledText(root, state='disabled', width=80, height=20)
+        self.output_text.pack(padx=10, pady=10)
+
+        self.input_var = tk.StringVar()
+        self.input_entry = tk.Entry(root, textvariable=self.input_var, width=80)
+        self.input_entry.pack(padx=10, pady=10)
+        self.input_entry.bind('<Return>', self.execute_command)
+
+    def execute_command(self, event):
+        command = self.input_var.get()
+        self.input_var.set("")  # Очистка ввода
+        output = self.emulator.execute_command(command)
+
+        self.output_text.configure(state='normal')  # Разрешить редактирование
+        self.output_text.insert(tk.END, f"{self.emulator.hostname}:{self.emulator.current_dir}$ {command}\n")
+        if output:
+            self.output_text.insert(tk.END, output + "\n")
+        self.output_text.configure(state='disabled')  
+        self.output_text.see(tk.END)  
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Usage: python main.py <hostname> <zip_path>")
         sys.exit(1)
 
-    hostname = sys.argv[1]  # Сохраняем значение hostname
+    hostname = sys.argv[1]  
     zip_path = sys.argv[2]
 
-    emulator = ShellEmulator(hostname, zip_path)
-    emulator.start()
+    root = tk.Tk()
+    emulator_gui = EmulatorGUI(root, hostname, zip_path)
+    root.mainloop()
